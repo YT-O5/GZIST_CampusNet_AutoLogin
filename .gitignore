@@ -1,0 +1,64 @@
+# ============================================================
+# 校园网自动登录 - Git 忽略规则
+# 注意：git 只把「行首」的 # 当作注释，行尾的 # 是普通字符。
+#       不要写成  CampusNet_Config.json  # 配置  —— 那样规则不生效！
+# ============================================================
+
+# ---- 敏感文件：真实配置与运行日志，禁止入库 ----
+/CampusNet_AutoLogin/CampusNet_Config.json
+# 日志统一归档在 logs\<yyyy-MM-dd>\ 下（可用 Settings.LogDir 改名、LogRetentionDays 调保留天数）
+# 整个文件夹都忽略：里面除当天的运行日志，还有自动补齐的 Launcher/Silent/Fatal 日志
+/CampusNet_AutoLogin/logs/
+# 旧版日志写在脚本目录直下（防御性保留：万一还在旧位置也别入库）
+/CampusNet_AutoLogin/CampusNet_Log.txt
+/CampusNet_AutoLogin/CampusNet_Diag.json
+# 防御性规则：脚本只往 CampusNet_AutoLogin\ 写日志，但万一在项目根跑也别入库
+# （注意 *.log 不匹配 .txt，所以这条必须单独写）
+/CampusNet_Log.txt
+# 例外：示例模板必须保留
+!/CampusNet_AutoLogin/CampusNet_Config.example.json
+
+# ---- 抓包资料：任何 HAR 都含可还原的账号密码，全局禁止入库 ----
+# ⚠ 这里必须写成全局的 *.har，不能只限定在 captures/ 目录内：
+#   否则抓包被丢在仓库根、docs/、或任何其它位置时就会被提交。
+# ⚠ 不要给“*redacted*.har”开例外：门户那套每字符 XOR 只是编码、不是加密，
+#   名为 redacted 的 HAR 里依然存着可还原的凭据（2026-09-28 已因此删掉入库的那份）。
+*.har
+#
+# 注意：`Campus Network source code/raw/`（门户源码原件）与 `annotated/` 是**有意入库**的，
+# 不要给它们加忽略规则。但如果你重新"另存为"门户页面，浏览器给的文件名里可能带
+# wlanusermac / wlanuserip / wlanacip —— 入库前务必先把文件名里的这些值去掉。
+
+# ---- 日志 / 临时 / 备份文件 ----
+*.log
+*.tmp
+*.temp
+*.bak
+*.old
+temp/
+tmp/
+Backup/
+backup/
+
+# ---- Windows / macOS 系统文件 ----
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ---- 编辑器 / IDE ----
+.vscode/
+.idea/
+
+# ---- 防御性补充（安全审查 2026-09-28）----
+# 1) 配置/日志如果被拷到仓库根或其它位置，同样不该入库
+/CampusNet_Config.json
+*/CampusNet_Config.json
+/CampusNet_Log.txt
+/*/logs/
+# 2) 抓包不只有 .har 这一种导出格式
+*.saz
+*.pcap
+*.pcapng
+*.chls
+*.chlsx
+/推送到GitHub.bat
