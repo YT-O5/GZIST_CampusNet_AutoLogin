@@ -1,0 +1,22 @@
+{
+  "Account": "2024xxxxxxxxxx",
+  "Password": "",
+  "PasswordFormat": "DPAPI",
+  "LastUpdate": "1970-01-01 00:00:00",
+  "CreatedBy": "校园网自动登录系统 v4.0",
+  "Settings": {
+    "PortalHost": "10.0.10.252",
+    "PortalPort": "803",
+    "BaseURL": "http://10.0.10.252:801/eportal/",
+    "WlanAcIp": "10.128.255.129",
+    "WlanAcName": "",
+    "JsVersion": "4.5.1",
+    "PortalVersion": "8366",
+    "LoginMethod": "1",
+    "Callback": "dr1003",
+    "OpenPortalOnFailure": "1",
+    "FlushDnsOnRepair": "0",
+    "LogDir": "logs",
+    "LogRetentionDays": "30"
+  }
+}
