@@ -1,0 +1,34 @@
+# ============================================================
+#  .gitattributes —— 统一行尾与二进制判定
+#
+#  为什么这个文件对本项目特别重要：
+#    · .bat 必须是 CRLF，否则 cmd 可能解析异常
+#    · .ps1 必须保持 UTF-8 with BOM（见 MAINTENANCE.md 的坑表），
+#      git 不会动 BOM，但行尾统一后能避免"克隆到 Linux 再传回来"时全文件 diff
+#    · .har 是抓包，属二进制/大文件，绝不能做行尾转换
+# ============================================================
+
+# 默认：由 git 自动判定文本/二进制
+* text=auto
+
+# ---- 脚本：Windows 原生，强制 CRLF ----
+*.ps1   text eol=crlf
+*.psm1  text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.json  text eol=crlf
+
+# ---- 文档：统一 LF ----
+*.md    text eol=lf
+*.txt   text eol=lf
+NOTICE  text eol=lf
+LICENSE text eol=lf
+
+# ---- 抓包与图片：二进制，禁止任何转换 ----
+*.har   binary
+*.png   binary
+*.jpg   binary
+*.ico   binary
+
+# git 钩子必须保持 LF（CRLF 的 sh 脚本会报 bad interpreter）
+.githooks/* text eol=lf
