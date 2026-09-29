@@ -1,0 +1,12 @@
+{
+  "name": "gzist-campusnet-autologin",
+  "version": "4.0.0",
+  "private": true,
+  "description": "广州理工学院校园网自动登录（PowerShell）。本文件只为给 Pester 测试套件提供一个统一入口：npm test。运行时不需要 Node。",
+  "scripts": {
+    "check": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/Check-Syntax.ps1",
+    "check:links": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/Check-Links.ps1",
+    "pretest": "npm run check",
+    "test": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/Run-Tests.ps1"
+  }
+}
