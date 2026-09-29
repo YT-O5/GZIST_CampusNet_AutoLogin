@@ -1,0 +1,64 @@
+#!/bin/sh
+# ============================================================
+# pre-commit 钩子：挡住"绝不该进仓库"的文件
+#
+# 为什么要它：.gitignore 只能拦住常规的 git add；一旦有人（包括未来的你）
+# 手滑写了 `git add -f`，忽略规则就形同虚设。这个钩子在"提交真正落盘前"
+# 再看一眼暂存区，把含凭据 / 抓包 / 日志的文件直接拒掉。
+#
+# ⚠ 它是一道"兜底便利"，**不是安全边界**，已知绕过方式：
+#   - `git commit --no-verify`（脚本里已提示，慎用）
+#   - `git add -f` 之后再 `--no-verify`
+#   - **merge commit 不触发 pre-commit**（走 pre-merge-commit 钩子）
+#   - 先改名成不被匹配的名字再提交（如 `x.har` → `x.har.bak`）
+#   真正可靠的防线是：`.gitignore` + 提交前自己看一眼 `git status`。
+#
+# 怎么启用（只做一次，本地生效）：
+#     git config core.hooksPath .githooks
+# ============================================================
+
+# 被拒绝的路径模式（扩展正则，大小写不敏感）
+PATTERN='(^|/)campusnet_config\.json$'
+PATTERN="$PATTERN|\.har$"
+PATTERN="$PATTERN|(^|/)logs/"
+PATTERN="$PATTERN|campusnet_log\.txt$"
+PATTERN="$PATTERN|campusnet_diag\.json$"
+PATTERN="$PATTERN|campusnet_fatal\.log$"
+PATTERN="$PATTERN|campusnet_launcher\.log$"
+PATTERN="$PATTERN|campusnet_silent\.log$"
+PATTERN="$PATTERN|\.saz$|\.pcap$|\.pcapng$|\.chls$|\.chlsx$"
+
+# 只检查"新增/修改/改名"的文件（不检查删除）
+# ⚠ 必须加 -c core.quotePath=false：否则非 ASCII 文件名（如"抓包测试.har"）会被
+#   git 转义成 "\346\212\223..." 这种形式，扩展名匹配就失效了（实测漏拦过）。
+# ⚠ 必须"失败即拒绝"（fail-closed）：如果 git 命令本身出错，绝不能因为"没拿到
+#   文件列表"就当成"没有违规文件"放行——那种静默放行比不装钩子更危险。
+if ! STAGED=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR 2>/dev/null); then
+    echo ''
+    echo '✘ pre-commit 检查失败：取暂存区文件列表时 git 报错。'
+    echo '  为安全起见，本次提交被拒绝（避免因检查失败而静默放行）。'
+    echo '  请先排查 git 状态；确认无风险后可用: git commit --no-verify'
+    echo ''
+    exit 1
+fi
+
+BLOCKED=$(printf '%s\n' "$STAGED" | grep -Ei "$PATTERN")
+
+if [ -n "$BLOCKED" ]; then
+    echo ''
+    echo '✘ 提交被拒绝：暂存区里有"不该进仓库"的文件'
+    echo '------------------------------------------------------------'
+    echo "$BLOCKED" | sed 's/^/    /'
+    echo '------------------------------------------------------------'
+    echo '  这些文件可能含凭据（配置里是 DPAPI 密文 + 明文学号）或可还原的'
+    echo '  抓包内容。请先撤出暂存区：'
+    echo ''
+    echo '      git restore --staged <上面列出的文件>'
+    echo ''
+    echo '  若你确认内容已脱敏、确实要提交，请用：'
+    echo '      git commit --no-verify'
+    echo ''
+    exit 1
+fi
+
+exit 0
