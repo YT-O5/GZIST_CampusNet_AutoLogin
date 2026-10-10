@@ -1,5 +1,7 @@
 # 广州理工学院 校园网自动登录（CampusNet）
 
+## 目前本脚本在本设备上运行，有线连接在硬件层面存在问题（修复中25-10-10
+
 > **这份是什么**：Windows 上自动连校园网的小工具：双击即登录、掉线自动重连，账号密码用 Windows 加密只存本机。
 > **只想用它上网？** 看完**第一部分**就够了（5 分钟）。**第二部分是参考资料，平时不用翻。**
 > **相关文档**：使用说明 [`docs/使用说明.md`](docs/使用说明.md) · 维护交接 [`docs/维护指南.md`](docs/维护指南.md) · 认证原理 [`Campus Network source code/README.md`](Campus%20Network%20source%20code/README.md)
