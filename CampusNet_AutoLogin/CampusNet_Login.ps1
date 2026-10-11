@@ -355,8 +355,8 @@ function Invoke-PortalFallbackIfNeeded {
             Write-Host '      ② 或去自助服务确认密码/账号状态：http://10.0.8.81:8080/Self/login/?302=LI' -ForegroundColor Cyan
         }
         'online' {
-            Write-Host '这个账号已经在线上（可能还占着别的设备/会话）。' -ForegroundColor Yellow
-            Write-Host '建议：去自助服务把其他设备下线后重试：http://10.0.8.81:8080/Self/login/?302=LI' -ForegroundColor Cyan
+            Write-Host '本终端已经在网（门户原文：终端IP已经在线），无需重复登录。' -ForegroundColor Yellow
+            Write-Host '如果确实上不了网，再去自助服务看看有没有历史会话占着：http://10.0.8.81:8080/Self/login/?302=LI' -ForegroundColor Cyan
         }
         'browser' {
             $url = Get-CampusPortalPageUrl -Settings $Settings -UserIp $UserIp -UserMac $UserMac

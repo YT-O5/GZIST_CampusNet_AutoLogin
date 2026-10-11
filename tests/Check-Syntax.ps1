@@ -21,7 +21,7 @@ param(
     [string]$Root,
 
     # 跳过这些子目录（默认跳过依赖与版本库目录）
-    [string[]]$ExcludeDir = @('node_modules', '.git')
+    [string[]]$ExcludeDir = @('node_modules', '.git', 'Source code')
 )
 
 $ErrorActionPreference = 'Stop'

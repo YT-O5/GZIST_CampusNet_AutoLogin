@@ -850,3 +850,55 @@ Describe '日志路径安全与配置解析（防回归）' {
         }
     }
 }
+
+# ============================================================
+# 链路断的物理网卡（真实场景：拔插网线后网卡 LinkSpeed=0、链路始终起不来）
+#   2026-10-10 实测遇到：以太网 Status=Disconnected + MediaConnectionState=Disconnected
+#   + LinkSpeed=0 bps，此时 -Repair 原本完全不管它（修复计划只认 Status=Up 的卡）。
+# ============================================================
+Describe '链路断的物理网卡（-Repair 可重启）' {
+
+    It '只挑「非虚拟 + Disconnected + 带残留 IP」的网卡' {
+        $report = @(
+            [pscustomobject]@{ Name = '以太网';  Status = 'Disconnected'; IP = '10.20.30.40'; IsVirtual = $false; IsApipa = $false; Usable = $false; HasGateway = $false },
+            [pscustomobject]@{ Name = 'WLAN';    Status = 'Up';           IP = '10.20.30.41'; IsVirtual = $false; IsApipa = $false; Usable = $true;  HasGateway = $true  },
+            [pscustomobject]@{ Name = '蓝牙';    Status = 'Disconnected'; IP = '';            IsVirtual = $false; IsApipa = $false; Usable = $false; HasGateway = $false },
+            [pscustomobject]@{ Name = 'vEthernet'; Status = 'Disconnected'; IP = '10.20.30.42'; IsVirtual = $true; IsApipa = $false; Usable = $false; HasGateway = $false }
+        )
+        $r = @(Get-CampusLinkDownAdapters -Report $report)
+        $r.Count | Should Be 1
+        $r[0].Name | Should Be '以太网'
+    }
+
+    It '没有残留 IP 的断链卡不入选（更像“压根没插网线”，不该被反复重启）' {
+        $report = @(
+            [pscustomobject]@{ Name = '以太网'; Status = 'Disconnected'; IP = ''; IsVirtual = $false; IsApipa = $false; Usable = $false; HasGateway = $false }
+        )
+        @(Get-CampusLinkDownAdapters -Report $report).Count | Should Be 0
+    }
+
+    It '修复计划仍只认链路 Up 的网卡（断链卡不进 renew 流程）' {
+        $report = @(
+            [pscustomobject]@{ Name = '以太网'; Status = 'Disconnected'; IP = '10.20.30.40'; IsVirtual = $false; IsApipa = $false; Usable = $false; HasGateway = $false }
+        )
+        @(Get-CampusRepairPlan -Report $report).Count | Should Be 0
+    }
+
+    It '传入空报告时不抛异常，返回空数组' {
+        @(Get-CampusLinkDownAdapters -Report @()).Count | Should Be 0
+        @(Get-CampusLinkDownAdapters).Count | Should Be 0
+    }
+}
+
+Describe '链路断网卡：残留 APIPA 不算“残留租约”' {
+
+    It '断链且只剩 169.254.x.x 的卡不入选（那不是租约，是没拿到地址的标记）' {
+        $report = @(
+            [pscustomobject]@{ Name = '以太网'; Status = 'Disconnected'; IP = '169.254.142.113'; IsApipa = $true;  IsVirtual = $false; Usable = $false; HasGateway = $false },
+            [pscustomobject]@{ Name = 'WLAN';   Status = 'Disconnected'; IP = '10.20.30.40';      IsApipa = $false; IsVirtual = $false; Usable = $false; HasGateway = $false }
+        )
+        $r = @(Get-CampusLinkDownAdapters -Report $report)
+        $r.Count | Should Be 1
+        $r[0].Name | Should Be 'WLAN'
+    }
+}

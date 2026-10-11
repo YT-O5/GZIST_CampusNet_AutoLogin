@@ -82,7 +82,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 # ------------------------------------------------------------
 # 版本 / 默认参数
 # ------------------------------------------------------------
-function Get-CampusNetVersion { return '4.0' }
+function Get-CampusNetVersion { return '4.1' }
 
 # portal 默认参数；可在配置文件 Settings 中按校区覆盖
 function Get-DefaultSettings {
@@ -131,10 +131,11 @@ function Get-PortalErrorText {
     $text = switch ($Code) {
         0       { '门户未给出明确错误码（result=0）' }
         1       { '密码错误（账号或密码不正确）' }
-        2       { '该账号已在其他设备登录，请先下线其他设备' }
+        2       { '本终端已经在网，无需重复登录（门户原文：终端IP已经在线）' }
         3       { '账号或密码错误' }
         4       { '账号不存在或已被停用' }
-        8       { 'IP/MAC 地址不匹配，或凭证无效（可试 ipconfig /release 后 /renew）' }
+        7       { 'Radius 认证失败（AC 与认证服务器之间的问题），可稍后重试' }
+        8       { 'Radius 认证超时（AC 与认证服务器之间的问题），可稍后重试' }
         11      { '账号已欠费或被限制' }
         default { "未知错误码 $Code" }
     }
@@ -978,7 +979,7 @@ function Get-CampusPortalPageUrl {
 #         $Settings 配置集合（读 OpenPortalOnFailure 开关）
 #   返回：'credentials' | 'online' | 'browser' | 'none'
 #     credentials = 账号/密码类错误(1/3/4/11) → 不开浏览器，应引导去改密码
-#     online      = 账号已在线上(ret_code=2, msg AC999) → 不开浏览器，引导去自助服务下线
+#     online      = 本终端已在网(ret_code=2, msg AC999) → 不开浏览器，无需重复登录
 #     browser     = 协议/网络/伪登录类 → 开浏览器门户页兜底
 #     none        = 开关关闭（OpenPortalOnFailure=0）
 #   调用方：CampusNet_Login.ps1 的 Invoke-PortalFallbackIfNeeded
@@ -1194,7 +1195,13 @@ function Get-CampusAdapter {
                     $shown = if ($r.IP) { $r.IP } else { '(无)' }
                     Write-CampusLog -Message ("  · {0} [{1}] 状态={2} IP={3} → {4}" -f $r.Name, $r.Type, $r.Status, $shown, $r.Reason) -Level WARNING -LogFile $LogFile
                 }
-                Write-CampusLog -Message '提示：网卡只有 169.254.x.x（APIPA）表示没拿到 DHCP 租约，跑 `CampusNet_Login.ps1 -Repair` 通常可免重启恢复。' -Level INFO -LogFile $LogFile
+                # 两类原因分开说：有 APIPA 的（拿不到租约，可修）与链路断的（物理层，脚本修不了）
+                if (@($report | Where-Object { $_.IsApipa }).Count -gt 0) {
+                    Write-CampusLog -Message '提示：有网卡只有 169.254.x.x（APIPA）——表示没拿到 DHCP 租约，跑 `CampusNet_Login.ps1 -Repair` 通常可免重启恢复。' -Level INFO -LogFile $LogFile
+                }
+                if (@($report | Where-Object { (-not $_.IsVirtual) -and ($_.Status -eq 'Disconnected') }).Count -gt 0) {
+                    Write-CampusLog -Message '提示：有物理网卡链路未连接（Disconnected）——这是网线/端口那一层的问题，登录脚本管不到：先换根网线或换个端口；若线插着仍是 0 bps，可在设备管理器里把该网卡「禁用」再「启用」，或以管理员身份运行 `CampusNet_Login.ps1 -Repair` 让它重启网卡。' -Level INFO -LogFile $LogFile
+                }
             }
         }
         return $null
@@ -1267,6 +1274,22 @@ function Invoke-CampusDhcpRenew {
     try { Invoke-CimMethod -Query $q -MethodName RenewDHCPLease -ErrorAction SilentlyContinue | Out-Null } catch { }
 }
 
+# 链路断、但还挂着残留 IPv4 的物理网卡（也就是“线插着却 LinkSpeed=0”的那种卡）
+#   为什么要求“带残留 IP”：有残留租约说明这张卡**曾经**成功拿过地址，多半是
+#   网卡/驱动卡住了（重启网卡可恢复）；而没有残留 IP 的 Disconnected 卡，更可能
+#   是这台机器压根没插网线——那种情况不该被 -Repair 反复重启。
+function Get-CampusLinkDownAdapters {
+    param([object[]]$Report)
+
+    if (-not $Report) { return @() }
+    return @($Report | Where-Object {
+            (-not $_.IsVirtual) -and
+            ($_.Status -eq 'Disconnected') -and
+            [bool]$_.IP -and
+            (-not $_.IsApipa)
+        })
+}
+
 # ------------------------------------------------------------
 # ------------------------------------------------------------
 # Invoke-CampusNetworkRepair —— 免重启网络修复（“重启一次就好”的自动化）
@@ -1275,7 +1298,7 @@ function Invoke-CampusDhcpRenew {
 #     2) 对目标网卡 release + renew，重拿 DHCP 租约
 #     3) 仍只有 APIPA 时重启网卡（等价于重启后重新初始化驱动），再 renew
 #   入参：$Report 体检结果（可选，不传自己取）；$DryRun 只预览；$LogFile 日志
-#   返回：$true = 已修好或无需修；$false = 修完仍未恢复（调用方映射为退出码 5）
+#   返回：$true = 已修好或无需修；$false = 修复未完成（调用方映射为退出码 5）
 #   全部动作写日志；没有管理员权限时只做 1+2 并明确提示需要管理员
 #   调用方：菜单 6、-Repair
 # ------------------------------------------------------------
@@ -1305,19 +1328,30 @@ function Invoke-CampusNetworkRepair {
     }
 
     $targets = @(Get-CampusRepairPlan -Report $report)
+    $linkDown = @(Get-CampusLinkDownAdapters -Report $report)
+
     if ($targets.Count -eq 0) {
-        if (@($report | Where-Object { $_.Usable }).Count -gt 0) {
-            Write-CampusLog -Message '没有需要修复的物理网卡：已经有一张网卡拿到了有效 IPv4 与网关。' -Level SUCCESS -LogFile $LogFile
-            return $true
+        # 没有“该重新拿租约”的网卡时，只有两种情况才继续往下走：
+        #   ① 有链路断但带残留租约的物理网卡（下面会尝试重启它）
+        #   ② 其余情况就是真的没什么可修
+        if ($linkDown.Count -eq 0) {
+            if (@($report | Where-Object { $_.Usable }).Count -gt 0) {
+                Write-CampusLog -Message '没有需要修复的物理网卡：已经有一张网卡拿到了有效 IPv4 与网关。' -Level SUCCESS -LogFile $LogFile
+                return $true
+            }
+            Write-CampusLog -Message '没有可修复的物理网卡（网卡都没在用，或都是虚拟链路）。' -Level WARNING -LogFile $LogFile
+            return $false
         }
-        Write-CampusLog -Message '没有可修复的物理网卡（网卡都没在用，或都是虚拟链路）。' -Level WARNING -LogFile $LogFile
-        return $false
+        Write-CampusLog -Message ('发现 {0} 张链路未连接的物理网卡（带残留租约）：{1}' -f $linkDown.Count, (($linkDown | ForEach-Object { $_.Name }) -join '、')) -Level WARNING -LogFile $LogFile
     }
 
     # DryRun 必须是纯空操作：连清缓存也不能做（它也是“改动”）
     if ($DryRun) {
         foreach ($t in $targets) {
             Write-CampusLog -Message ("  [DryRun] 将修复「{0}」：Release/Renew DHCP（IfIndex={1}）{2}" -f $t.Name, $t.IfIndex, $(if ($isAdmin) { ' + 必要时重启网卡' } else { '（无管理员权限，跳过重启网卡）' })) -Level INFO -LogFile $LogFile
+        }
+        foreach ($d in $linkDown) {
+            Write-CampusLog -Message ("  [DryRun] 将重启「{0}」：该卡链路未连接但带残留租约，需重启网卡重新初始化{1}" -f $d.Name, $(if ($isAdmin) { '' } else { '（无管理员权限，本次只会给出提示）' })) -Level INFO -LogFile $LogFile
         }
         Write-CampusLog -Message '（DryRun：以上仅为计划，未做任何改动）' -Level INFO -LogFile $LogFile
         return $true
@@ -1381,8 +1415,39 @@ function Invoke-CampusNetworkRepair {
         }
     }
 
+    # --- 3) 链路断的物理网卡：唯一软件手段是重启网卡（= 设备管理器里禁用→启用）---
+    #   注意：这一步**不会**自动做在“链路断但没有残留租约”的卡上（那种更像没插线），
+    #   只有“曾经拿过地址、如今链路却死了”的卡才进 $linkDown。
+    foreach ($d in $linkDown) {
+        if (-not $isAdmin) {
+            Write-CampusLog -Message ("网卡「{0}」链路未连接（无物理链路）。重启网卡可让它像重启电脑那样重新初始化，但需要管理员权限：请右键 CampusNet.bat 以管理员身份运行；同时建议先换根网线或换个墙上端口试。" -f $d.Name) -Level WARNING -LogFile $LogFile
+            continue
+        }
+
+        Write-CampusLog -Message ("网卡「{0}」链路未连接，正在重启网卡以重新初始化驱动（约 10 秒）..." -f $d.Name) -Level WARNING -LogFile $LogFile
+        try {
+            Restart-NetAdapter -Name $d.Name -Confirm:$false -ErrorAction Stop
+        }
+        catch {
+            Write-CampusLog -Message ("  重启网卡失败：{0}" -f $_.Exception.Message) -Level WARNING -LogFile $LogFile
+        }
+        Start-Sleep -Seconds 5
+
+        $afterLink = @(Get-CampusAdapterReport) | Where-Object { $_.Name -eq $d.Name } | Select-Object -First 1
+        if ($afterLink -and $afterLink.Usable) {
+            Write-CampusLog -Message ("  「{0}」重启后已恢复：IP={1} 网关={2}" -f $d.Name, $afterLink.IP, $afterLink.HasGateway) -Level SUCCESS -LogFile $LogFile
+            $fixed = $true
+        }
+        elseif ($afterLink -and $afterLink.Status -eq 'Up') {
+            Write-CampusLog -Message ("  「{0}」重启后链路已起来，但还没拿到 IPv4：稍等片刻重跑一次 -Repair 即可。" -f $d.Name) -Level WARNING -LogFile $LogFile
+        }
+        else {
+            Write-CampusLog -Message ("  「{0}」重启后链路仍未建立。这通常是物理层问题（网线 / 墙上端口 / 对端口），建议换根网线或换个端口再试。" -f $d.Name) -Level ERROR -LogFile $LogFile
+        }
+    }
+
     if ($fixed) { Write-CampusLog -Message '网络修复完成：已至少恢复一张网卡。' -Level SUCCESS -LogFile $LogFile }
-    else { Write-CampusLog -Message '网络修复结束：仍未恢复可用 IPv4。' -Level ERROR -LogFile $LogFile }
+    else { Write-CampusLog -Message '网络修复结束：修复未完成——仍有物理网卡不可用（详见上面各条）。' -Level ERROR -LogFile $LogFile }
     return $fixed
 }
 
