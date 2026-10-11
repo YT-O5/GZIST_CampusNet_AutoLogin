@@ -32,3 +32,6 @@ LICENSE text eol=lf
 
 # git 钩子必须保持 LF（CRLF 的 sh 脚本会报 bad interpreter）
 .githooks/* text eol=lf
+
+# 归档源码：保留原始字节，不做任何行尾/编码转换
+"Source code/**" -text
