@@ -225,7 +225,7 @@ login.portal_login = function (data, success, fail) {
 /* 失败码 → 文案 的映射在本项目之外也有对应（a40.js 1560-1604 行 error.portal_login_err）：
  *   ret_code 1/4 → 账号密码类（msg 非空则用 msg）
  *   ret_code 2   → 终端IP已经在线
- *   ret_code 8   → Radius认证超时（本项目 README 记为 IP/MAC 不匹配，以抓包为准）
+ *   ret_code 8   → Radius认证超时（门户 JS 原文如此；本项目旧文档曾错记为 IP/MAC 不匹配）
  * 本项目对应实现：ConvertFrom-PortalResponse 以 result 为主、ret_code 为辅，
  *   并【只信真实联网】，不把 result:1 当"能上网"。
  */

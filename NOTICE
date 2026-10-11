@@ -34,10 +34,10 @@
 - 据此确认了主登录接口 `:803/eportal/portal/login`、参数混淆规则（每个字符 `XOR 一个由本机 IP 推导的 key` 后转十六进制）、
   请求参数表与顺序、`loadConfig` 取 `program_index`/`page_index`、以及门户下发的 `visit_blacklist`；
 - 失败响应真值同样来自抓包（`10.0.10.252-lan1.har` / `-lan2.har` / `-5G.har` / `-2.4G.har`：均为故意输错密码的会话）：
-  `ret_code=1` 密码错误、`2` 该账号已在线、`8` IP/MAC 不匹配；成功为 `dr1003({"result":1,"msg":"Portal协议认证成功！"})`；
+  `ret_code=1`/`4` 账号或密码错误、`2` 本终端已在线、`7`/`8` Radius 认证失败 / 超时；成功为 `dr1003({"result":1,"msg":"Portal协议认证成功！"})`；
 - **参数混淆的 XOR key 由客户端 IP 推导**：`key = IP 字符串每个字符 ASCII 码的逐位异或`
   （门户自带 JS `a41.js` 的 `util.getkey(term.ip)`）。实测 `10.20.30.40 → 0x2A`、
-  `10.20.30.41 → 0x2B`、`10.20.30.42 → 0x28`：四份抓包用推导出的 key 均能逐字节复现。
+  `10.20.30.41 → 0x2B`、`10.20.30.42 → 0x28`（以上为**合成示例 IP** 的演算值；真实抓包各自的 key 是 `0x20`/`0x25`/`0x29`，见 `captures/README.md`）：各抓包用自身 IP 推导的 key 均能逐字节复现。
   **写死某个 key 会被门户判为「请求参数包含非法内容」（HTTP/dr0001 code=403）**，脚本已改为按网卡 IP 推导。
 - 相关事实、测试向量与代码对应关系记录在 `Campus Network source code/captures/README.md` 与 `Campus Network source code/技术资料.md`。
 

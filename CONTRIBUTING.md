@@ -4,7 +4,7 @@
 > **适合谁读**：想提 PR 或在自己 fork 上改代码的人。
 > **相关文档**：维护交接 [`docs/维护指南.md`](docs/维护指南.md) · 协议真值 [`Campus Network source code/技术资料.md`](Campus%20Network%20source%20code/技术资料.md)
 
-感谢你有兴趣改进这个脚本。它是给广州理工学院师生用的校园网自动登录工具，
+感谢对本脚本的关注。它是给广州理工学院师生用的校园网自动登录工具，
 **稳定性 > 功能多**。请先读完本文再动手。
 
 ---
@@ -18,9 +18,9 @@ npm run check
 # 2) 单元测试（npm test 会先自动跑一遍语法自检）
 npm test
 
-# 3) 确认没把凭据带进仓库（把尖括号换成你自己的真实值再跑）
+# 3) 确认没把凭据带进仓库（把尖括号换成真实值后再跑）
 git status --short
-git diff --cached | findstr /I "<你的学号> <你的密码>"    # 应无输出
+git diff --cached | findstr /I "<学号> <密码>"    # 应无输出
 ```
 
 三条全绿再提 PR。
@@ -31,7 +31,7 @@ git diff --cached | findstr /I "<你的学号> <你的密码>"    # 应无输出
 
 | 文件 | 原因 |
 | :--- | :--- |
-| `CampusNet_AutoLogin/CampusNet_Config.json` | 含你的账号与密码密文 |
+| `CampusNet_AutoLogin/CampusNet_Config.json` | 含本机账号与密码密文 |
 | `CampusNet_AutoLogin/*Log*.txt` / `*.log` | 运行日志里会带学号 |
 | `Campus Network source code/captures/*.har` | 抓包含**可还原**的账号密码（XOR 不是加密）；只有 `*redacted*.har` 例外 |
 
@@ -123,4 +123,4 @@ git diff --cached | findstr /I "<你的学号> <你的密码>"    # 应无输出
     git config core.hooksPath .githooks
 ## 八、许可
 
-提交即表示你同意以 **MIT License** 授权你的贡献（见 [`LICENSE`](LICENSE)）。
+提交即表示同意以 **MIT License** 授权贡献（见 [`LICENSE`](LICENSE)）。
