@@ -10,6 +10,7 @@
 
 > **这份是什么**：Windows 上自动连校园网的小工具，双击即登录、掉线自动重连，账号密码用 Windows 加密只存本机。
 > **只想用它上网？看完本页就够了（5 分钟）。** 细节都在下面几份文档里，**用到再翻**。
+> **相关文档**：使用说明 [`docs/使用说明.md`](docs/使用说明.md) · 维护交接 [`docs/维护指南.md`](docs/维护指南.md) · 协议资料库 [`Campus Network source code/`](Campus%20Network%20source%20code/README.md)
 
 > 🔐 **本项目不含任何真实凭据**：配置文件已清空，示例里的学号 / 密码 / 本机 MAC / IP 全部是合成的。
 > **首次使用请先双击 `FirstTimeSetup.bat`** 重新填一次账号密码。
