@@ -82,7 +82,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 # ------------------------------------------------------------
 # 版本 / 默认参数
 # ------------------------------------------------------------
-function Get-CampusNetVersion { return '4.1' }
+function Get-CampusNetVersion { return '4.1.2' }
 
 # portal 默认参数；可在配置文件 Settings 中按校区覆盖
 function Get-DefaultSettings {
