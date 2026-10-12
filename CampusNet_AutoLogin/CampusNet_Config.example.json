@@ -3,7 +3,7 @@
   "Password": "",
   "PasswordFormat": "DPAPI",
   "LastUpdate": "1970-01-01 00:00:00",
-  "CreatedBy": "校园网自动登录系统 v4.0",
+  "CreatedBy": "校园网自动登录系统 v4.1.2",
   "Settings": {
     "PortalHost": "10.0.10.252",
     "PortalPort": "803",
